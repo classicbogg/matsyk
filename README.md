@@ -5,6 +5,17 @@
 ```bash
 git clone https://github.com/classicbogg/matsyk.git
 cd matsyk
+python -m venv venv
+```
+
+Активация venv:
+
+- Windows: `venv\Scripts\activate`
+- Linux/Mac: `source venv/bin/activate`
+
+Дальше:
+
+```bash
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
