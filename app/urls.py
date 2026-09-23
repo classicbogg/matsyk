@@ -2,18 +2,16 @@ from django.urls import path
 
 from . import views
 
-# Здесь адреса связываются с функциями из views.py
-# Например: /quotes/, /quote/1/, /categories/create/
 urlpatterns = [
-    path("quotes/", views.get_quotes, name="get_quotes"),
-    path("quote/<int:pk>/", views.get_quote, name="get_quote"),
-    path("quotes/create/", views.create_quote, name="create_quote"),
+    # Цитаты
+    path("quotes/", views.QuoteList.as_view(), name="quote_list"),
+    path("quotes/<int:pk>/", views.QuoteDetail.as_view(), name="quote_detail"),
 
-    path("categories/", views.get_categories, name="get_categories"),
-    path("category/<int:pk>/", views.get_category, name="get_category"),
-    path("categories/create/", views.create_category, name="create_category"),
+    # Категории
+    path("categories/", views.CategoryList.as_view(), name="category_list"),
+    path("categories/<int:pk>/", views.CategoryDetail.as_view(), name="category_detail"),
 
-    path("tags/", views.get_tags, name="get_tags"),
-    path("tag/<int:pk>/", views.get_tag, name="get_tag"),
-    path("tags/create/", views.create_tag, name="create_tag"),
+    # Теги
+    path("tags/", views.TagList.as_view(), name="tag_list"),
+    path("tags/<int:pk>/", views.TagDetail.as_view(), name="tag_detail"),
 ]

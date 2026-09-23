@@ -1,117 +1,131 @@
-# json - стандартная библиотека Python, чтобы читать JSON из тела запроса
 import json
-
-# JsonResponse - ответ клиенту в формате JSON
 from django.http import JsonResponse
-# csrf_exempt - отключает проверку CSRF-токена для POST с JSON
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
+from django.utils.decorators import method_decorator
 from .models import Category, Quote, Tag
 
+# цитаты
 
-def get_quotes(request):
-    # Берём все цитаты из базы
-    quotes = []
-    for quote in Quote.objects.all():
-        # В список кладём обычные словари Python
-        quotes.append({
+@method_decorator(csrf_exempt, name='dispatch')
+class QuoteList(View):
+    def get(self, request):
+        quotes = []
+        for quote in Quote.objects.all():
+            quotes.append({
+                "id": quote.id,
+                "text": quote.text,
+                "category": quote.category.name,
+            })
+        return JsonResponse({"quotes": quotes})
+
+    def post(self, request):
+        data = json.loads(request.body)
+        quote = Quote.objects.create(
+            text=data["text"],
+            category_id=data["category_id"],
+        )
+        quote.tags.set(data["tag_ids"])
+        return JsonResponse({
             "id": quote.id,
             "text": quote.text,
-            # category.name - имя категории через связь ForeignKey
+        }, status=201)
+
+
+class QuoteDetail(View):
+    def get(self, request, pk):
+        try:
+            quote = Quote.objects.get(pk=pk)
+        except Quote.DoesNotExist:
+            return JsonResponse({"error": "Цитата не найдена"}, status=404)
+
+        return JsonResponse({
+            "id": quote.id,
+            "text": quote.text,
             "category": quote.category.name,
         })
-    # Отдаём словарь {"quotes": [...]}, а не голый список
-    return JsonResponse({"quotes": quotes})
 
 
-def get_quote(request, pk):
-    # pk - номер цитаты из адреса, например /quote/1/
-    try:
-        quote = Quote.objects.get(pk=pk)
-    except Quote.DoesNotExist:
-        # Если такой цитаты нет - отвечаем ошибкой 404
-        return JsonResponse({"error": "Цитата не найдена"}, status=404)
+# категории
 
-    return JsonResponse({
-        "id": quote.id,
-        "text": quote.text,
-        "category": quote.category.name,
-    })
+@method_decorator(csrf_exempt, name='dispatch')
+class CategoryList(View):
+    def get(self, request):
+        categories = []
+        for category in Category.objects.all():
+            categories.append({
+                "id": category.id,
+                "name": category.name,
+            })
+        return JsonResponse({"categories": categories})
+
+    def post(self, request):
+        data = json.loads(request.body)
+        category = Category.objects.create(name=data["name"])
+        return JsonResponse({
+            "id": category.id,
+            "name": category.name,
+        }, status=201)
 
 
-def get_categories(request):
-    categories = []
-    for category in Category.objects.all():
-        categories.append({
+class CategoryDetail(View):
+    def get(self, request, pk):
+        try:
+            category = Category.objects.get(pk=pk)
+        except Category.DoesNotExist:
+            return JsonResponse({"error": "Категория не найдена"}, status=404)
+
+        return JsonResponse({
             "id": category.id,
             "name": category.name,
         })
-    return JsonResponse({"categories": categories})
+    
+# Тэги
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TagList(View):
+    def get(self, request):
+        tags = []
+        for tag in Tag.objects.all():
+            tags.append({
+                "id": tag.id,
+                "name": tag.name,
+            })
+        return JsonResponse({"tags": tags})
+
+    def post(self, request):
+        data = json.loads(request.body)
+        tag = Tag.objects.create(name=data["name"])
+        return JsonResponse({
+            "id": tag.id,
+            "name": tag.name,
+        }, status=201)
 
 
-def get_category(request, pk):
-    try:
-        category = Category.objects.get(pk=pk)
-    except Category.DoesNotExist:
-        return JsonResponse({"error": "Категория не найдена"}, status=404)
+class TagDetail(View):
+    def get(self, request, pk):
+        try:
+            tag = Tag.objects.get(pk=pk)
+        except Tag.DoesNotExist:
+            return JsonResponse({"error": " Тег не найден"}, status=404)
 
-    return JsonResponse({
-        "id": category.id,
-        "name": category.name,
-    })
-
-
-def get_tags(request):
-    tags = []
-    for tag in Tag.objects.all():
-        tags.append({
+        return JsonResponse({
             "id": tag.id,
             "name": tag.name,
         })
-    return JsonResponse({"tags": tags})
 
+from django.views import View
+from django.http import HttpResponse
 
-def get_tag(request, pk):
-    try:
-        tag = Tag.objects.get(pk=pk)
-    except Tag.DoesNotExist:
-        return JsonResponse({"error": "Тег не найден"}, status=404)
+class ItemUpdateView(View):
+    def put(self, request, pk):
+        # Получаем объект из базы данных по первичному ключу
+        item = get_object_or_404(Item, pk=pk)
 
-    return JsonResponse({
-        "id": tag.id,
-        "name": tag.name,
-    })
+        # Обновляем поля из данных запроса
+        item.name = request.data.get('name', item.name)
+        item.done = request.data.get('done', item.done)
+        item.save()
 
-
-# Без @csrf_exempt Django отклонит POST с JSON (ошибка 403)
-
-@csrf_exempt
-def create_category(request):
-    # request.body - сырой текст запроса, json.loads делает из него словарь
-    data = json.loads(request.body)
-    # Создаём категорию в базе
-    category = Category.objects.create(name=data["name"])
-    return JsonResponse({"id": category.id, "name": category.name})
-
-
-@csrf_exempt
-def create_tag(request):
-    data = json.loads(request.body)
-    tag = Tag.objects.create(name=data["name"])
-    return JsonResponse({"id": tag.id, "name": tag.name})
-
-
-@csrf_exempt
-def create_quote(request):
-    # Ожидаем JSON вида:
-    # {"text": "текст", "category_id": 1, "tag_ids": [1, 2]}
-    data = json.loads(request.body)
-    # category_id - номер категории, Django сам найдёт связь
-    quote = Quote.objects.create(
-        text=data["text"],
-        category_id=data["category_id"],
-    )
-    # tags.set вешает теги по списку номеров (ManyToMany)
-    # если тегов нет - присылай "tag_ids": []
-    quote.tags.set(data["tag_ids"])
-    return JsonResponse({"id": quote.id, "text": quote.text})
+        # Возвращаем обновлённые данные
+        return HttpResponse(f"Item {pk} updated successfully")
