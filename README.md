@@ -1,7 +1,5 @@
 # matsyk
 
-Django API для цитат: GET/POST + админка.
-
 ## На паре развернуть
 
 ```bash
